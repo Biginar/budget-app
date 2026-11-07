@@ -250,9 +250,7 @@
 </div>
 
 <div id="toast"></div>
-
-<script>
-// ================== الثوابت ==================
+ <script>
 const STORAGE_KEY = 'budget_app_v3';
 const CURRENCIES = {
   LYD: { symbol: 'د.ل', name: 'دينار ليبي',    decimals: 2 },
@@ -266,7 +264,7 @@ const CURRENCIES = {
   TND: { symbol: 'د.ت', name: 'دينار تونسي',  decimals: 3 },
   DZD: { symbol: 'د.ج', name: 'دينار جزائري', decimals: 2 },
   MAD: { symbol: 'د.م', name: 'درهم مغربي',   decimals: 2 },
-  JOD: { symbol: 'د.أ', name: 'دينار أردني',  decimals: 3 },
+  JOD: { symbol: 'د.أ', name: 'دينار أردني',  decimals: 3 }
 };
 
 const CATEGORIES = {
@@ -277,33 +275,33 @@ const CATEGORIES = {
   health:    { name: 'صحة',     emoji: '💊', color: '#1abc9c' },
   edu:       { name: 'تعليم',   emoji: '📚', color: '#34495e' },
   shopping:  { name: 'تسوق',    emoji: '🛍️', color: '#e91e63' },
-  other:     { name: 'أخرى',    emoji: '📦', color: '#95a5a6' },
+  other:     { name: 'أخرى',    emoji: '📦', color: '#95a5a6' }
 };
 
-// ================== الحالة ==================
 let state = {
   total: 0, currency: 'LYD', name: '',
-  expenses: [], warned80: false, warned100: false,
-  lastCategory: 'food',
+  expenses: [], warned80: false, warned100: false, lastCategory: 'food'
 };
 let selectedCategory = 'food';
 
 function load() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) state = { ...state, ...JSON.parse(raw) };
+    if (raw) state = Object.assign({}, state, JSON.parse(raw));
   } catch (e) { console.error(e); }
   if (state.expenses) {
-    state.expenses = state.expenses.map(e => ({ ...e, category: e.category || 'other' }));
+    state.expenses = state.expenses.map(e => {
+      if (!e.category) e.category = 'other';
+      return e;
+    });
   }
   selectedCategory = state.lastCategory || 'food';
 }
-function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
 
-// ================== حسابات ==================
-const spent     = () => state.expenses.reduce((s, e) => s + e.amount, 0);
+function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+const spent = () => state.expenses.reduce((s, e) => s + e.amount, 0);
 const remaining = () => Math.max(0, state.total - spent());
-const usage     = () => state.total > 0 ? Math.min(1, spent() / state.total) : 0;
+const usage = () => state.total > 0 ? Math.min(1, spent() / state.total) : 0;
 
 function money(n) {
   const c = CURRENCIES[state.currency] || CURRENCIES.LYD;
@@ -314,16 +312,12 @@ function fmtNum(n) {
   return n.toFixed(c.decimals);
 }
 
-// ================== التصنيفات ==================
 function renderCategoryChips() {
-  const html = Object.entries(CATEGORIES).map(([key, c]) =>
-    `<button class="cat-chip ${key === selectedCategory ? 'active' : ''}"
-      data-cat="${key}"
-      style="--cat-color:${c.color}"
-      onclick="selectCategory('${key}')">
-      ${c.emoji} ${c.name}
-    </button>`
-  ).join('');
+  const html = Object.keys(CATEGORIES).map(key => {
+    const c = CATEGORIES[key];
+    const active = key === selectedCategory ? 'active' : '';
+    return '<button class="cat-chip ' + active + '" style="--cat-color:' + c.color + '" onclick="selectCategory(\'' + key + '\')">' + c.emoji + ' ' + c.name + '</button>';
+  }).join('');
   document.getElementById('catChips').innerHTML = html;
 }
 
@@ -334,7 +328,6 @@ function selectCategory(cat) {
   renderCategoryChips();
 }
 
-// ================== الرسم البياني ==================
 function renderChart() {
   const container = document.getElementById('chartContent');
   const totalSpent = spent();
@@ -351,43 +344,30 @@ function renderChart() {
 
   const R = 60, CIRC = 2 * Math.PI * R;
   let offset = 0;
-  let paths = `<circle cx="80" cy="80" r="${R}" fill="none" stroke="var(--border)" stroke-width="22"/>`;
+  let paths = '<circle cx="80" cy="80" r="' + R + '" fill="none" stroke="var(--border)" stroke-width="22"/>';
 
-  entries.forEach(([cat, amt]) => {
+  entries.forEach(entry => {
+    const cat = entry[0], amt = entry[1];
     const f = amt / totalSpent;
     const dash = f * CIRC;
     const c = CATEGORIES[cat] || CATEGORIES.other;
-    paths += `<circle cx="80" cy="80" r="${R}" fill="none"
-      stroke="${c.color}" stroke-width="22"
-      stroke-dasharray="${dash} ${CIRC - dash}"
-      stroke-dashoffset="${-offset}"
-      transform="rotate(-90 80 80)"/>`;
+    paths += '<circle cx="80" cy="80" r="' + R + '" fill="none" stroke="' + c.color + '" stroke-width="22" stroke-dasharray="' + dash + ' ' + (CIRC - dash) + '" stroke-dashoffset="' + (-offset) + '" transform="rotate(-90 80 80)"/>';
     offset += dash;
   });
 
-  paths += `<text x="80" y="76" text-anchor="middle" style="fill:var(--muted);font-size:10px;" font-family="Tahoma">المصروف</text>`;
-  paths += `<text x="80" y="92" text-anchor="middle" style="fill:var(--text);font-size:12px;font-weight:700;direction:ltr;" font-family="Tahoma">${fmtNum(totalSpent)}</text>`;
+  paths += '<text x="80" y="76" text-anchor="middle" style="fill:var(--muted);font-size:10px;" font-family="Tahoma">المصروف</text>';
+  paths += '<text x="80" y="92" text-anchor="middle" style="fill:var(--text);font-size:12px;font-weight:700;direction:ltr;" font-family="Tahoma">' + fmtNum(totalSpent) + '</text>';
 
-  const legendHTML = entries.map(([cat, amt]) => {
+  const legendHTML = entries.map(entry => {
+    const cat = entry[0], amt = entry[1];
     const c = CATEGORIES[cat] || CATEGORIES.other;
     const pct = Math.round((amt / totalSpent) * 100);
-    return `
-      <div class="legend-item">
-        <span class="legend-dot" style="background:${c.color}"></span>
-        <span class="legend-name">${c.emoji} ${c.name}</span>
-        <span class="legend-amount">${fmtNum(amt)}</span>
-        <span class="legend-pct">${pct}%</span>
-      </div>`;
+    return '<div class="legend-item"><span class="legend-dot" style="background:' + c.color + '"></span><span class="legend-name">' + c.emoji + ' ' + c.name + '</span><span class="legend-amount">' + fmtNum(amt) + '</span><span class="legend-pct">' + pct + '%</span></div>';
   }).join('');
 
-  container.innerHTML = `
-    <div class="chart-wrap">
-      <svg viewBox="0 0 160 160" class="donut">${paths}</svg>
-      <div class="legend">${legendHTML}</div>
-    </div>`;
+  container.innerHTML = '<div class="chart-wrap"><svg viewBox="0 0 160 160" class="donut">' + paths + '</svg><div class="legend">' + legendHTML + '</div></div>';
 }
 
-// ================== العرض ==================
 function render() {
   if (state.total <= 0) {
     document.getElementById('setupView').style.display = 'block';
@@ -427,26 +407,17 @@ function render() {
   } else {
     list.innerHTML = state.expenses.map((e, i) => {
       const c = CATEGORIES[e.category] || CATEGORIES.other;
-      return `
-        <li class="tx-item">
-          <div class="tx-left">
-            <span class="cat-emoji">${c.emoji}</span>
-            <span class="tx-note">${escapeHtml(e.note || c.name)}</span>
-          </div>
-          <div class="tx-right">
-            <span class="amount">− ${fmtNum(e.amount)}</span>
-            <button class="del" onclick="delExpense(${i})">×</button>
-          </div>
-        </li>`;
+      return '<li class="tx-item"><div class="tx-left"><span class="cat-emoji">' + c.emoji + '</span><span class="tx-note">' + escapeHtml(e.note || c.name) + '</span></div><div class="tx-right"><span class="amount">− ' + fmtNum(e.amount) + '</span><button class="del" onclick="delExpense(' + i + ')">×</button></div></li>';
     }).join('');
   }
 }
 
 function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c => ({'&':'&','<':'<','>':'>','"':'"',"'":'''}[c]));
+  return String(s).replace(/[&<>"']/g, function(c) {
+    return {'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[c];
+  });
 }
 
-// ================== الإجراءات ==================
 function setupBudget() {
   const amt = parseFloat(document.getElementById('setupAmount').value);
   if (!amt || amt <= 0) { toast('أدخل مبلغاً صحيحاً'); return; }
@@ -471,7 +442,7 @@ function deduct() {
     amount: amt,
     note: noteEl.value.trim(),
     category: selectedCategory,
-    date: Date.now(),
+    date: Date.now()
   });
   save();
   render();
@@ -490,10 +461,7 @@ function delExpense(i) {
 }
 
 function resetAll() {
-  state = {
-    total: 0, currency: state.currency, name: '',
-    expenses: [], warned80: false, warned100: false, lastCategory: 'food',
-  };
+  state = { total: 0, currency: state.currency, name: '', expenses: [], warned80: false, warned100: false, lastCategory: 'food' };
   selectedCategory = 'food';
   save();
   closeReset();
@@ -502,7 +470,6 @@ function resetAll() {
   toast('تم التصفير');
 }
 
-// ================== الإعدادات ==================
 function openSettings() {
   document.getElementById('setName').value = state.name;
   document.getElementById('setTotal').value = state.total;
@@ -524,12 +491,8 @@ function saveSettings() {
   toast('تم الحفظ ✓');
 }
 
-// ================== المشاركة ==================
 function buildShareLink() {
-  const params = new URLSearchParams({
-    amount: state.total.toString(),
-    currency: state.currency,
-  });
+  const params = new URLSearchParams({ amount: state.total.toString(), currency: state.currency });
   if (state.name) params.set('name', state.name);
   return location.origin + location.pathname + '?' + params.toString();
 }
@@ -559,16 +522,14 @@ function checkURLParams() {
   toast('تم تحميل الميزانية من الرابط');
 }
 
-// ================== CSV ==================
 function exportCSV() {
   if (state.expenses.length === 0) { toast('لا توجد مصروفات'); return; }
   const cur = CURRENCIES[state.currency];
-  const rows = [['التاريخ', 'الوصف', 'التصنيف', `المبلغ (${cur.symbol})`, 'العملة']];
+  const rows = [['التاريخ', 'الوصف', 'التصنيف', 'المبلغ (' + cur.symbol + ')', 'العملة']];
 
   state.expenses.slice().reverse().forEach(e => {
     const d = new Date(e.date);
-    const dateStr = d.toLocaleDateString('ar-EG') + ' ' +
-                    d.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = d.toLocaleDateString('ar-EG') + ' ' + d.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
     const catName = (CATEGORIES[e.category] || CATEGORIES.other).name;
     rows.push([dateStr, e.note || 'مشترى', catName, e.amount.toFixed(cur.decimals), state.currency]);
   });
@@ -580,8 +541,8 @@ function exportCSV() {
     const cat = e.category || 'other';
     totals[cat] = (totals[cat] || 0) + e.amount;
   });
-  Object.entries(totals).sort((a,b) => b[1]-a[1]).forEach(([cat, amt]) => {
-    rows.push([(CATEGORIES[cat] || CATEGORIES.other).name, '', '', amt.toFixed(cur.decimals), state.currency]);
+  Object.entries(totals).sort((a,b) => b[1]-a[1]).forEach(entry => {
+    rows.push([(CATEGORIES[entry[0]] || CATEGORIES.other).name, '', '', entry[1].toFixed(cur.decimals), state.currency]);
   });
 
   rows.push([]);
@@ -589,12 +550,12 @@ function exportCSV() {
   rows.push(['المصروف', '', '', spent().toFixed(cur.decimals), state.currency]);
   rows.push(['المتبقي', '', '', remaining().toFixed(cur.decimals), state.currency]);
 
-  const csv = '\uFEFF' + rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const csv = '\uFEFF' + rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `مصروفات_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = 'مصروفات_' + new Date().toISOString().slice(0, 10) + '.csv';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -602,7 +563,6 @@ function exportCSV() {
   toast('تم تصدير الملف ✓');
 }
 
-// ================== الإشعارات ==================
 function requestNotifPermission() {
   if ('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission();
@@ -611,11 +571,7 @@ function requestNotifPermission() {
 function notify(title, body) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   try {
-    new Notification(title, {
-      body,
-      tag: 'budget-' + title,
-      icon: 'data:image/svg+xml;utf8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%23667eea%22/%3E%3Ctext x=%2250%22 y=%2275%22 font-size=%2260%22 text-anchor=%22middle%22 fill=%22white%22 font-family=%22Tahoma%22%3E%D9%85%3C/text%3E%3C/svg%3E',
-    });
+    new Notification(title, { body: body, tag: 'budget-' + title });
   } catch (e) { console.error(e); }
 }
 function checkAlerts() {
@@ -631,7 +587,6 @@ function checkAlerts() {
   }
 }
 
-// ================== أدوات ==================
 function toast(msg) {
   const el = document.getElementById('toast');
   el.textContent = msg;
@@ -639,15 +594,16 @@ function toast(msg) {
   clearTimeout(el._t);
   el._t = setTimeout(() => el.classList.remove('show'), 2200);
 }
+
 function fillCurrencySelects() {
-  const options = Object.entries(CURRENCIES)
-    .map(([code, c]) => `<option value="${code}">${c.name} (${c.symbol})</option>`)
-    .join('');
+  const options = Object.keys(CURRENCIES).map(code => {
+    const c = CURRENCIES[code];
+    return '<option value="' + code + '">' + c.name + ' (' + c.symbol + ')</option>';
+  }).join('');
   document.getElementById('setupCurrency').innerHTML = options;
   document.getElementById('setCurrency').innerHTML = options;
 }
 
-// ================== PWA ==================
 function registerSW() {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
@@ -656,7 +612,6 @@ function registerSW() {
   }
 }
 
-// ================== التهيئة ==================
 function init() {
   fillCurrencySelects();
   load();
@@ -667,13 +622,32 @@ function init() {
 
   document.addEventListener('keydown', e => {
     if (e.key !== 'Enter') return;
-    const id = document.activeElement?.id;
+    const id = document.activeElement ? document.activeElement.id : '';
     if (id === 'setupAmount' || id === 'setupName') setupBudget();
     else if (id === 'deductAmount' || id === 'deductNote') deduct();
   });
 }
+
 init();
 </script>
 </body>
 </html>
+
+    
+    
+
+  
+
+// ================== العرض ==================
+
+
+  
+
+
+
+
+
+
+
+  
 
