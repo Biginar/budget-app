@@ -140,7 +140,7 @@
   }
 </style>
 </head>
-/*نهاية الجزء الاول*/
+
 <body>
 <div class="container">
   <header>
@@ -250,7 +250,17 @@
 </div>
 
 <div id="toast"></div>
-/*نهاية الجزء الثاني*/
+<div id="diagBox" style="background:#fee;color:#c0392b;padding:10px;margin:10px 0;border-radius:8px;font-size:12px;display:none;direction:ltr;text-align:left;word-break:break-all;"></div>
+<script>
+window.onerror = function(msg, url, line, col) {
+  var box = document.getElementById('diagBox');
+  if (box) {
+    box.style.display = 'block';
+    box.textContent = '❌ خطأ في السطر ' + line + ': ' + msg;
+  }
+  return false;
+};
+</script>
 <script>
 // ================== الثوابت ==================
 const STORAGE_KEY = 'budget_app_v3';
