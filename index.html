@@ -627,7 +627,8 @@ function init() {
     else if (id === 'deductAmount' || id === 'deductNote') deduct();
   });
 }
-
+function openReset() { document.getElementById('resetModal').classList.add('show'); }
+function closeReset() { document.getElementById('resetModal').classList.remove('show'); }
 init();
 </script>
 </body>
