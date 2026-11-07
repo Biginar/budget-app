@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#667eea">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>عداد المصروف</title>
+<link rel="manifest" href="manifest.json">
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --bg: #f4f6fb; --card: #fff; --text: #2c3e50; --muted: #7f8c8d;
+    --primary: #667eea; --danger: #e74c3c; --warn: #f39c12; --ok: #27ae60;
+    --border: #e0e6ed; --shadow: 0 10px 40px rgba(0,0,0,.08);
+    --chip-bg: rgba(102,126,234,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1d29; --card: #252938; --text: #e8eaed; --muted: #9aa0aa;
+      --border: #35394a; --shadow: 0 10px 40px rgba(0,0,0,.4);
+      --chip-bg: rgba(255,255,255,.05);
+    }
+  }
+  body {
+    margin: 0; padding: 16px;
+    font-family: 'Segoe UI', Tahoma, system-ui, sans-serif;
+    background: var(--bg); min-height: 100vh; color: var(--text);
+  }
+  .container { max-width: 520px; margin: 0 auto; }
+  header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  header h1 { font-size: 20px; margin: 0; }
+  .icon-btn {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 18px; color: var(--text);
+  }
+  .icon-btn:active { transform: scale(.95); }
+  .card { background: var(--card); border-radius: 20px; padding: 20px; box-shadow: var(--shadow); }
+  .display {
+    background: linear-gradient(135deg, #2c3e50, #4a6fa5);
+    color: white; border-radius: 16px; padding: 24px; text-align: center; margin-bottom: 16px;
+  }
+  .display .label { font-size: 13px; opacity: .8; }
+  .display .value { font-size: 40px; font-weight: bold; margin: 6px 0; direction: ltr; display: inline-block; }
+  .display .total { font-size: 12px; opacity: .7; direction: ltr; display: inline-block; margin-top: 4px; }
+  .display .title-name { font-size: 12px; opacity: .85; margin-bottom: 8px; }
+  .progress-wrap { background: var(--border); border-radius: 999px; height: 12px; overflow: hidden; margin-bottom: 6px; }
+  .progress-bar { height: 100%; transition: all .4s; border-radius: 999px; }
+  .pct { text-align: center; font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+  input, select {
+    width: 100%; padding: 12px 14px; border: 2px solid var(--border); border-radius: 12px;
+    font-size: 16px; outline: none; font-family: inherit;
+    background: var(--card); color: var(--text); transition: border .2s;
+  }
+  input:focus, select:focus { border-color: var(--primary); }
+  label { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+  .field { margin-bottom: 14px; }
+  .input-group { display: flex; gap: 8px; }
+  button {
+    padding: 12px 20px; border: none; border-radius: 12px; font-size: 15px;
+    font-weight: 600; cursor: pointer; font-family: inherit;
+    transition: transform .1s;
+  }
+  button:active { transform: scale(.97); }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-ghost { background: var(--border); color: var(--text); }
+  .btn-full { width: 100%; }
+  .cat-chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+  .cat-chips::-webkit-scrollbar { display: none; }
+  .cat-chip {
+    flex-shrink: 0; padding: 8px 12px; border-radius: 999px;
+    border: 1.5px solid var(--border); background: var(--card); color: var(--text);
+    font-size: 13px; cursor: pointer; white-space: nowrap; transition: all .2s;
+  }
+  .cat-chip.active {
+    background: var(--cat-color); color: #fff; border-color: var(--cat-color); font-weight: 600;
+  }
+  .chart-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .donut { width: 170px; height: 170px; flex-shrink: 0; }
+  .legend { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+  .legend-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px; background: var(--chip-bg); border-radius: 10px; font-size: 13px;
+  }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .legend-name { flex: 1; font-weight: 500; }
+  .legend-amount { font-weight: 700; direction: ltr; }
+  .legend-pct { color: var(--muted); font-size: 11px; min-width: 38px; text-align: left; }
+  .section-title { font-size: 14px; font-weight: 700; color: var(--text); margin: 20px 0 10px; }
+  .tx-list { list-style: none; padding: 0; margin: 0; max-height: 40vh; overflow-y: auto; }
+  .tx-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 12px; background: var(--chip-bg); border-radius: 10px; margin-bottom: 6px;
+    font-size: 14px; gap: 8px;
+  }
+  .tx-left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+  .cat-emoji { font-size: 18px; flex-shrink: 0; }
+  .tx-note { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tx-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .tx-item .amount { color: var(--danger); font-weight: 700; direction: ltr; font-size: 13px; }
+  .tx-item .del { background: transparent; color: var(--muted); padding: 4px 8px; font-size: 18px; line-height: 1; }
+  .empty { text-align: center; color: var(--muted); padding: 24px 0; font-size: 14px; }
+  .alert { padding: 12px; border-radius: 10px; font-size: 13px; margin-bottom: 12px; text-align: center; }
+  .alert-danger { background: rgba(231,76,60,.1); border: 1px solid rgba(231,76,60,.3); color: var(--danger); }
+  .alert-warn { background: rgba(243,156,18,.1); border: 1px solid rgba(243,156,18,.3); color: #b8860b; }
+  .actions-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 16px; }
+  .actions-row button {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 12px 6px; font-size: 12px;
+  }
+  .actions-row .emoji { font-size: 20px; }
+  .modal-backdrop {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55);
+    z-index: 100; align-items: center; justify-content: center; padding: 16px;
+    backdrop-filter: blur(4px);
+  }
+  .modal-backdrop.show { display: flex; }
+  .modal {
+    background: var(--card); border-radius: 18px; padding: 22px; width: 100%;
+    max-width: 420px; max-height: 90vh; overflow-y: auto;
+  }
+  .modal h2 { margin: 0 0 16px; font-size: 18px; }
+  .modal .actions { display: flex; gap: 8px; margin-top: 16px; }
+  .modal .actions button { flex: 1; }
+  #toast {
+    position: fixed; bottom: 30px; left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: #2c3e50; color: #fff; padding: 10px 20px; border-radius: 999px;
+    font-size: 14px; opacity: 0; transition: all .3s; pointer-events: none; z-index: 200;
+    white-space: nowrap;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .share-preview {
+    background: var(--chip-bg); border: 1px dashed var(--primary);
+    padding: 10px; border-radius: 8px; font-size: 12px; color: var(--muted);
+    word-break: break-all; direction: ltr; text-align: left; margin-bottom: 12px;
+  }
+</style>
+</head>
+/*نهاية الجزء الاول*/
+<body>
+<div class="container">
+  <header>
+    <h1>💰 عداد المصروف</h1>
+    <button class="icon-btn" id="settingsBtn" onclick="openSettings()" style="display:none;">⚙️</button>
+  </header>
+
+  <!-- شاشة البداية -->
+  <div id="setupView" class="card">
+    <p style="text-align:center;color:var(--muted);margin:0 0 16px;">حدّد مبلغك وابدأ التتبع</p>
+    <div class="field">
+      <label>المبلغ الكلي</label>
+      <input type="number" id="setupAmount" placeholder="0.00" min="0" step="0.01" inputmode="decimal">
+    </div>
+    <div class="field">
+      <label>العملة</label>
+      <select id="setupCurrency"></select>
+    </div>
+    <div class="field">
+      <label>اسم اختياري</label>
+      <input type="text" id="setupName" placeholder="ميزانية الشهر" maxlength="40">
+    </div>
+    <button class="btn-primary btn-full" onclick="setupBudget()">ابدأ التتبع</button>
+  </div>
+
+  <!-- الشاشة الرئيسية -->
+  <div id="mainView" style="display:none;">
+    <div class="card">
+      <div class="display">
+        <div class="title-name" id="displayName"></div>
+        <div class="label">المتبقي</div>
+        <div class="value" id="remaining">0</div>
+        <div class="total">من أصل <span id="total">0</span></div>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-bar" id="progressBar" style="width:0%;background:var(--ok);"></div>
+      </div>
+      <div class="pct" id="pctText">0% مستهلك</div>
+      <div id="alertBox"></div>
+
+      <div class="field">
+        <label>التصنيف</label>
+        <div class="cat-chips" id="catChips"></div>
+      </div>
+
+      <div class="input-group">
+        <input type="number" id="deductAmount" placeholder="قيمة المنتج" min="0" step="0.01" inputmode="decimal">
+        <button class="btn-danger" onclick="deduct()">خصم</button>
+      </div>
+      <input type="text" id="deductNote" placeholder="الوصف (اختياري)" maxlength="60" style="margin-top:8px;">
+
+      <div class="section-title">📊 الإنفاق حسب التصنيف</div>
+      <div id="chartContent"></div>
+
+      <div class="section-title">📋 سجل المشتريات</div>
+      <ul class="tx-list" id="txList"></ul>
+
+      <div class="actions-row">
+        <button class="btn-ghost" onclick="exportCSV()"><span class="emoji">📤</span>تصدير</button>
+        <button class="btn-ghost" onclick="openShare()"><span class="emoji">🔗</span>مشاركة</button>
+        <button class="btn-ghost" onclick="openSettings()"><span class="emoji">⚙️</span>إعدادات</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- إعدادات -->
+<div class="modal-backdrop" id="settingsModal">
+  <div class="modal">
+    <h2>⚙️ الإعدادات</h2>
+    <div class="field"><label>الاسم</label><input type="text" id="setName" maxlength="40"></div>
+    <div class="field"><label>المبلغ الكلي</label><input type="number" id="setTotal" min="0" step="0.01" inputmode="decimal"></div>
+    <div class="field"><label>العملة</label><select id="setCurrency"></select></div>
+    <div class="actions">
+      <button class="btn-ghost" onclick="closeSettings()">إلغاء</button>
+      <button class="btn-primary" onclick="saveSettings()">حفظ</button>
+    </div>
+    <button class="btn-danger btn-full" style="margin-top:14px;" onclick="openReset()">🔄 تصفير كل شيء</button>
+  </div>
+</div>
+
+<!-- مشاركة -->
+<div class="modal-backdrop" id="shareModal">
+  <div class="modal">
+    <h2>🔗 مشاركة الميزانية</h2>
+    <p style="color:var(--muted);font-size:13px;margin:0 0 10px;">
+      شارك الرابط — سيبدأ بنفس المبلغ والعملة (بدون سجل المشتريات).
+    </p>
+    <div class="share-preview" id="sharePreview"></div>
+    <div class="actions">
+      <button class="btn-ghost" onclick="closeShare()">إغلاق</button>
+      <button class="btn-primary" onclick="copyShareLink()">📋 نسخ</button>
+    </div>
+  </div>
+</div>
+
+<!-- تصفير -->
+<div class="modal-backdrop" id="resetModal">
+  <div class="modal">
+    <h2>تصفير كل شيء؟</h2>
+    <p style="color:var(--muted);font-size:14px;">سيتم حذف المبلغ والسجل بالكامل. لا يمكن التراجع.</p>
+    <div class="actions">
+      <button class="btn-ghost" onclick="closeReset()">إلغاء</button>
+      <button class="btn-danger" onclick="resetAll()">تأكيد</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+/*نهاية الجزء الثاني*/
+<script>
+// ================== الثوابت ==================
+const STORAGE_KEY = 'budget_app_v3';
+const CURRENCIES = {
+  LYD: { symbol: 'د.ل', name: 'دينار ليبي',    decimals: 2 },
+  SAR: { symbol: 'ر.س', name: 'ريال سعودي',   decimals: 2 },
+  AED: { symbol: 'د.إ', name: 'درهم إماراتي', decimals: 2 },
+  EGP: { symbol: 'ج.م', name: 'جنيه مصري',    decimals: 2 },
+  USD: { symbol: '$',   name: 'دولار أمريكي', decimals: 2 },
+  EUR: { symbol: '€',   name: 'يورو',         decimals: 2 },
+  KWD: { symbol: 'د.ك', name: 'دينار كويتي',  decimals: 3 },
+  QAR: { symbol: 'ر.ق', name: 'ريال قطري',    decimals: 2 },
+  TND: { symbol: 'د.ت', name: 'دينار تونسي',  decimals: 3 },
+  DZD: { symbol: 'د.ج', name: 'دينار جزائري', decimals: 2 },
+  MAD: { symbol: 'د.م', name: 'درهم مغربي',   decimals: 2 },
+  JOD: { symbol: 'د.أ', name: 'دينار أردني',  decimals: 3 },
+};
+
+const CATEGORIES = {
+  food:      { name: 'طعام',    emoji: '🍔', color: '#e74c3c' },
+  bills:     { name: 'فواتير',  emoji: '🧾', color: '#3498db' },
+  transport: { name: 'مواصلات', emoji: '🚗', color: '#9b59b6' },
+  fun:       { name: 'ترفيه',   emoji: '🎬', color: '#f39c12' },
+  health:    { name: 'صحة',     emoji: '💊', color: '#1abc9c' },
+  edu:       { name: 'تعليم',   emoji: '📚', color: '#34495e' },
+  shopping:  { name: 'تسوق',    emoji: '🛍️', color: '#e91e63' },
+  other:     { name: 'أخرى',    emoji: '📦', color: '#95a5a6' },
+};
+
+// ================== الحالة ==================
+let state = {
+  total: 0, currency: 'LYD', name: '',
+  expenses: [], warned80: false, warned100: false,
+  lastCategory: 'food',
+};
+let selectedCategory = 'food';
+
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) state = { ...state, ...JSON.parse(raw) };
+  } catch (e) { console.error(e); }
+  if (state.expenses) {
+    state.expenses = state.expenses.map(e => ({ ...e, category: e.category || 'other' }));
+  }
+  selectedCategory = state.lastCategory || 'food';
+}
+function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+// ================== حسابات ==================
+const spent     = () => state.expenses.reduce((s, e) => s + e.amount, 0);
+const remaining = () => Math.max(0, state.total - spent());
+const usage     = () => state.total > 0 ? Math.min(1, spent() / state.total) : 0;
+
+function money(n) {
+  const c = CURRENCIES[state.currency] || CURRENCIES.LYD;
+  return n.toFixed(c.decimals) + ' ' + c.symbol;
+}
+function fmtNum(n) {
+  const c = CURRENCIES[state.currency] || CURRENCIES.LYD;
+  return n.toFixed(c.decimals);
+}
+
+// ================== التصنيفات ==================
+function renderCategoryChips() {
+  const html = Object.entries(CATEGORIES).map(([key, c]) =>
+    `<button class="cat-chip ${key === selectedCategory ? 'active' : ''}"
+      data-cat="${key}"
+      style="--cat-color:${c.color}"
+      onclick="selectCategory('${key}')">
+      ${c.emoji} ${c.name}
+    </button>`
+  ).join('');
+  document.getElementById('catChips').innerHTML = html;
+}
+
+function selectCategory(cat) {
+  selectedCategory = cat;
+  state.lastCategory = cat;
+  save();
+  renderCategoryChips();
+}
+
+// ================== الرسم البياني ==================
+function renderChart() {
+  const container = document.getElementById('chartContent');
+  const totalSpent = spent();
+  if (totalSpent === 0) {
+    container.innerHTML = '<div class="empty">أضف مصروفات لعرض التصنيفات</div>';
+    return;
+  }
+  const totals = {};
+  state.expenses.forEach(e => {
+    const cat = e.category || 'other';
+    totals[cat] = (totals[cat] || 0) + e.amount;
+  });
+  const entries = Object.entries(totals).sort((a, b) => b[1] - a[1]);
+
+  const R = 60, CIRC = 2 * Math.PI * R;
+  let offset = 0;
+  let paths = `<circle cx="80" cy="80" r="${R}" fill="none" stroke="var(--border)" stroke-width="22"/>`;
+
+  entries.forEach(([cat, amt]) => {
+    const f = amt / totalSpent;
+    const dash = f * CIRC;
+    const c = CATEGORIES[cat] || CATEGORIES.other;
+    paths += `<circle cx="80" cy="80" r="${R}" fill="none"
+      stroke="${c.color}" stroke-width="22"
+      stroke-dasharray="${dash} ${CIRC - dash}"
+      stroke-dashoffset="${-offset}"
+      transform="rotate(-90 80 80)"/>`;
+    offset += dash;
+  });
+
+  paths += `<text x="80" y="76" text-anchor="middle" style="fill:var(--muted);font-size:10px;" font-family="Tahoma">المصروف</text>`;
+  paths += `<text x="80" y="92" text-anchor="middle" style="fill:var(--text);font-size:12px;font-weight:700;direction:ltr;" font-family="Tahoma">${fmtNum(totalSpent)}</text>`;
+
+  const legendHTML = entries.map(([cat, amt]) => {
+    const c = CATEGORIES[cat] || CATEGORIES.other;
+    const pct = Math.round((amt / totalSpent) * 100);
+    return `
+      <div class="legend-item">
+        <span class="legend-dot" style="background:${c.color}"></span>
+        <span class="legend-name">${c.emoji} ${c.name}</span>
+        <span class="legend-amount">${fmtNum(amt)}</span>
+        <span class="legend-pct">${pct}%</span>
+      </div>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="chart-wrap">
+      <svg viewBox="0 0 160 160" class="donut">${paths}</svg>
+      <div class="legend">${legendHTML}</div>
+    </div>`;
+}
+
+// ================== العرض ==================
+function render() {
+  if (state.total <= 0) {
+    document.getElementById('setupView').style.display = 'block';
+    document.getElementById('mainView').style.display = 'none';
+    document.getElementById('settingsBtn').style.display = 'none';
+    return;
+  }
+  document.getElementById('setupView').style.display = 'none';
+  document.getElementById('mainView').style.display = 'block';
+  document.getElementById('settingsBtn').style.display = 'flex';
+
+  const r = remaining(), u = usage();
+  document.getElementById('displayName').textContent = state.name || '';
+  document.getElementById('remaining').textContent = fmtNum(r) + ' ' + CURRENCIES[state.currency].symbol;
+  document.getElementById('total').textContent = fmtNum(state.total) + ' ' + CURRENCIES[state.currency].symbol;
+
+  const bar = document.getElementById('progressBar');
+  bar.style.width = (u * 100) + '%';
+  bar.style.background = u >= 1 ? 'var(--danger)' : u >= 0.8 ? 'var(--warn)' : 'var(--ok)';
+  document.getElementById('pctText').textContent = Math.round(u * 100) + '% مستهلك';
+
+  const alertBox = document.getElementById('alertBox');
+  if (r === 0) {
+    alertBox.innerHTML = '<div class="alert alert-danger">🚨 نفد المبلغ! لا مزيد من المشتريات.</div>';
+  } else if (u >= 0.8) {
+    alertBox.innerHTML = '<div class="alert alert-warn">⚠️ اقتربت من النهاية — تبقى ' + money(r) + '</div>';
+  } else {
+    alertBox.innerHTML = '';
+  }
+
+  renderCategoryChips();
+  renderChart();
+
+  const list = document.getElementById('txList');
+  if (state.expenses.length === 0) {
+    list.innerHTML = '<li class="empty">لا توجد مشتريات بعد</li>';
+  } else {
+    list.innerHTML = state.expenses.map((e, i) => {
+      const c = CATEGORIES[e.category] || CATEGORIES.other;
+      return `
+        <li class="tx-item">
+          <div class="tx-left">
+            <span class="cat-emoji">${c.emoji}</span>
+            <span class="tx-note">${escapeHtml(e.note || c.name)}</span>
+          </div>
+          <div class="tx-right">
+            <span class="amount">− ${fmtNum(e.amount)}</span>
+            <button class="del" onclick="delExpense(${i})">×</button>
+          </div>
+        </li>`;
+    }).join('');
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&','<':'<','>':'>','"':'"',"'":'''}[c]));
+}
+
+// ================== الإجراءات ==================
+function setupBudget() {
+  const amt = parseFloat(document.getElementById('setupAmount').value);
+  if (!amt || amt <= 0) { toast('أدخل مبلغاً صحيحاً'); return; }
+  state.total = amt;
+  state.currency = document.getElementById('setupCurrency').value;
+  state.name = document.getElementById('setupName').value.trim();
+  state.expenses = [];
+  state.warned80 = false;
+  state.warned100 = false;
+  save();
+  requestNotifPermission();
+  render();
+  toast('ابدأ التتبع ✓');
+}
+
+function deduct() {
+  const amtEl = document.getElementById('deductAmount');
+  const noteEl = document.getElementById('deductNote');
+  const amt = parseFloat(amtEl.value);
+  if (!amt || amt <= 0) { toast('أدخل قيمة صحيحة'); return; }
+  state.expenses.unshift({
+    amount: amt,
+    note: noteEl.value.trim(),
+    category: selectedCategory,
+    date: Date.now(),
+  });
+  save();
+  render();
+  checkAlerts();
+  amtEl.value = '';
+  noteEl.value = '';
+  amtEl.focus();
+}
+
+function delExpense(i) {
+  if (!confirm('حذف هذا المصروف؟')) return;
+  state.expenses.splice(i, 1);
+  if (remaining() > 0) { state.warned80 = false; state.warned100 = false; }
+  save();
+  render();
+}
+
+function resetAll() {
+  state = {
+    total: 0, currency: state.currency, name: '',
+    expenses: [], warned80: false, warned100: false, lastCategory: 'food',
+  };
+  selectedCategory = 'food';
+  save();
+  closeReset();
+  closeSettings();
+  render();
+  toast('تم التصفير');
+}
+
+// ================== الإعدادات ==================
+function openSettings() {
+  document.getElementById('setName').value = state.name;
+  document.getElementById('setTotal').value = state.total;
+  document.getElementById('setCurrency').value = state.currency;
+  document.getElementById('settingsModal').classList.add('show');
+}
+function closeSettings() { document.getElementById('settingsModal').classList.remove('show'); }
+
+function saveSettings() {
+  const newTotal = parseFloat(document.getElementById('setTotal').value);
+  if (!newTotal || newTotal <= 0) { toast('أدخل مبلغاً صحيحاً'); return; }
+  state.total = newTotal;
+  state.currency = document.getElementById('setCurrency').value;
+  state.name = document.getElementById('setName').value.trim();
+  if (remaining() > 0) { state.warned80 = false; state.warned100 = false; }
+  save();
+  render();
+  closeSettings();
+  toast('تم الحفظ ✓');
+}
+
+// ================== المشاركة ==================
+function buildShareLink() {
+  const params = new URLSearchParams({
+    amount: state.total.toString(),
+    currency: state.currency,
+  });
+  if (state.name) params.set('name', state.name);
+  return location.origin + location.pathname + '?' + params.toString();
+}
+function openShare() {
+  document.getElementById('sharePreview').textContent = buildShareLink();
+  document.getElementById('shareModal').classList.add('show');
+}
+function closeShare() { document.getElementById('shareModal').classList.remove('show'); }
+async function copyShareLink() {
+  const link = buildShareLink();
+  try {
+    await navigator.clipboard.writeText(link);
+    toast('تم نسخ الرابط ✓');
+    closeShare();
+  } catch (e) { prompt('انسخ الرابط:', link); }
+}
+function checkURLParams() {
+  const params = new URLSearchParams(location.search);
+  const amount = parseFloat(params.get('amount'));
+  if (!amount || amount <= 0 || state.total > 0) return;
+  document.getElementById('setupAmount').value = amount;
+  const cur = params.get('currency');
+  if (cur && CURRENCIES[cur]) document.getElementById('setupCurrency').value = cur;
+  const name = params.get('name');
+  if (name) document.getElementById('setupName').value = name.slice(0, 40);
+  history.replaceState({}, '', location.pathname);
+  toast('تم تحميل الميزانية من الرابط');
+}
+
+// ================== CSV ==================
+function exportCSV() {
+  if (state.expenses.length === 0) { toast('لا توجد مصروفات'); return; }
+  const cur = CURRENCIES[state.currency];
+  const rows = [['التاريخ', 'الوصف', 'التصنيف', `المبلغ (${cur.symbol})`, 'العملة']];
+
+  state.expenses.slice().reverse().forEach(e => {
+    const d = new Date(e.date);
+    const dateStr = d.toLocaleDateString('ar-EG') + ' ' +
+                    d.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+    const catName = (CATEGORIES[e.category] || CATEGORIES.other).name;
+    rows.push([dateStr, e.note || 'مشترى', catName, e.amount.toFixed(cur.decimals), state.currency]);
+  });
+
+  rows.push([]);
+  rows.push(['--- ملخص حسب التصنيف ---']);
+  const totals = {};
+  state.expenses.forEach(e => {
+    const cat = e.category || 'other';
+    totals[cat] = (totals[cat] || 0) + e.amount;
+  });
+  Object.entries(totals).sort((a,b) => b[1]-a[1]).forEach(([cat, amt]) => {
+    rows.push([(CATEGORIES[cat] || CATEGORIES.other).name, '', '', amt.toFixed(cur.decimals), state.currency]);
+  });
+
+  rows.push([]);
+  rows.push(['المجموع الكلي', '', '', state.total.toFixed(cur.decimals), state.currency]);
+  rows.push(['المصروف', '', '', spent().toFixed(cur.decimals), state.currency]);
+  rows.push(['المتبقي', '', '', remaining().toFixed(cur.decimals), state.currency]);
+
+  const csv = '\uFEFF' + rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `مصروفات_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('تم تصدير الملف ✓');
+}
+
+// ================== الإشعارات ==================
+function requestNotifPermission() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+function notify(title, body) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  try {
+    new Notification(title, {
+      body,
+      tag: 'budget-' + title,
+      icon: 'data:image/svg+xml;utf8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%23667eea%22/%3E%3Ctext x=%2250%22 y=%2275%22 font-size=%2260%22 text-anchor=%22middle%22 fill=%22white%22 font-family=%22Tahoma%22%3E%D9%85%3C/text%3E%3C/svg%3E',
+    });
+  } catch (e) { console.error(e); }
+}
+function checkAlerts() {
+  const r = remaining(), u = usage();
+  if (r === 0 && !state.warned100) {
+    state.warned100 = true; save();
+    notify('🚨 نفد المبلغ', 'لقد استنفدت كل المبلغ المخصص.');
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+  } else if (u >= 0.8 && r > 0 && !state.warned80) {
+    state.warned80 = true; save();
+    notify('⚠️ اقتربت من النهاية', 'تبقى ' + money(r) + ' فقط.');
+    if (navigator.vibrate) navigator.vibrate(100);
+  }
+}
+
+// ================== أدوات ==================
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 2200);
+}
+function fillCurrencySelects() {
+  const options = Object.entries(CURRENCIES)
+    .map(([code, c]) => `<option value="${code}">${c.name} (${c.symbol})</option>`)
+    .join('');
+  document.getElementById('setupCurrency').innerHTML = options;
+  document.getElementById('setCurrency').innerHTML = options;
+}
+
+// ================== PWA ==================
+function registerSW() {
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(e => console.log('SW:', e));
+    });
+  }
+}
+
+// ================== التهيئة ==================
+function init() {
+  fillCurrencySelects();
+  load();
+  document.getElementById('setupCurrency').value = state.currency || 'LYD';
+  checkURLParams();
+  render();
+  registerSW();
+
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    const id = document.activeElement?.id;
+    if (id === 'setupAmount' || id === 'setupName') setupBudget();
+    else if (id === 'deductAmount' || id === 'deductNote') deduct();
+  });
+}
+init();
+</script>
+</body>
+</html>
+
